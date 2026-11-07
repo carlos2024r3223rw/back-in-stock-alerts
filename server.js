@@ -40,7 +40,7 @@ const json = (res, code, body) => {
 const html = (res, code, body) => {
   res.writeHead(code, {
     "content-type": "text/html; charset=utf-8",
-    "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors *; form-action 'self'",
+    "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; frame-ancestors *; form-action 'self'",
     "x-content-type-options": "nosniff",
     "referrer-policy": "no-referrer"
   });
