@@ -86,6 +86,28 @@ async function handleStockEvent(event) {
     if (String(error).includes("UNIQUE")) return { duplicate: true, notified: 0 };
     throw error;
   }
+  const stockBase = process.env.STOCK_API_URL;
+  const stockKey = process.env.STOCK_API_KEY;
+  if (!stockBase || !stockKey) {
+    db.prepare("DELETE FROM webhook_events WHERE event_id=?").run(String(event.event_id));
+    throw Object.assign(new Error("Stock API is not configured"), { status: 503 });
+  }
+  let verified;
+  try {
+    const stockResponse = await fetch(`${stockBase.replace(/\/$/, "")}/${encodeURIComponent(event.sku)}`, {
+      headers: { authorization: `Bearer ${stockKey}` },
+      signal: AbortSignal.timeout(5000)
+    });
+    if (!stockResponse.ok) throw new Error(`Stock API returned ${stockResponse.status}`);
+    verified = await stockResponse.json();
+  } catch (error) {
+    // Network uncertainty must remain retryable: release the event id so the sender can try again.
+    db.prepare("DELETE FROM webhook_events WHERE event_id=?").run(String(event.event_id));
+    throw Object.assign(new Error(`Unable to verify stock: ${error.message}`), { status: 503 });
+  }
+  if (!verified.in_stock && Number(verified.quantity || 0) <= 0) {
+    return { duplicate: false, notified: 0, stock_verified: false };
+  }
   const pending = db.prepare("SELECT * FROM requests WHERE upper(sku)=upper(?) AND status='open' ORDER BY id").all(event.sku);
   let notified = 0;
   for (const request of pending) {

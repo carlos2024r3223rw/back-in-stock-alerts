@@ -28,6 +28,7 @@ The challenge-provided variables are `STOCK_API_URL`, `STOCK_API_KEY`, `RESEND_A
 
 - A partial unique SQLite index prevents the same email/SKU from having two open requests.
 - Each webhook `event_id` is stored behind a primary-key constraint before processing, so retried or simultaneous deliveries become no-ops.
+- A webhook's quantity is treated only as a hint; the service checks the authenticated stock API before notifying anyone. Network failures release the event for a safe retry.
 - Each request is atomically claimed (`open` → `processing`) before email delivery.
 - A deterministic Resend idempotency key (`restock-{request_id}`) protects against ambiguous provider retries.
 - Failed deliveries return the request to `open` with the error recorded, allowing a later stock event to retry it.
